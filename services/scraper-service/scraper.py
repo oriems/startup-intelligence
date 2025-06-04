@@ -1,11 +1,13 @@
 import time
 import psycopg2
+import os
+host = os.getenv("DB_HOST", "localhost")  # default to localhost
 
 conn = psycopg2.connect(
     dbname="startup_intel",
     user="startup",
     password="secret",
-    host="postgres"
+    host=host
 )
 
 cur = conn.cursor()
