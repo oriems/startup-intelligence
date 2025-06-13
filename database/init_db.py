@@ -25,8 +25,6 @@ CREATE TABLE IF NOT EXISTS startups (
 
 # Create twitter_raw table for storing raw tweet data
 cur.execute("""
-DROP TABLE IF EXISTS twitter_raw;
-
 CREATE TABLE twitter_raw (
     tweet_id TEXT PRIMARY KEY,
     created_at TIMESTAMPTZ,
