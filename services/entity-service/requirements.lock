@@ -1,0 +1,4 @@
+# Created by uv. Use uv pip install -r requirements.lock to install
+openai==1.14.2
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9

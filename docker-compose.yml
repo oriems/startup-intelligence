@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: startup
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: startup_intel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  scraper-service:
+    build: ./services/scraper-service
+    depends_on:
+      - postgres
+
+  entity-service:
+    build: ./services/entity-service
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
