@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
+import re
 
 # Load environment variables
 load_dotenv()
@@ -20,9 +21,9 @@ DB_PARAMS = {
     "port": os.getenv("POSTGRES_PORT", 5432)
 }
 
-def extract_with_openai(text):
+def extract_with_openai(tweet_text):
     prompt = f"""
-You are a financial data extraction assistant. Extract the following fields from this tweet:
+Extract the following fields from this tweet:
 - company_name
 - round_amount
 - currency
@@ -30,35 +31,26 @@ You are a financial data extraction assistant. Extract the following fields from
 - date (mentioned in text, else use today's date)
 - investors (as a list)
 - location (if mentioned)
+- company_url (the official website domain of the company, e.g., "example.com"; if not found in the tweet, use web search to find the company's official website. If still unsure, return an empty string.)
 
-Tweet: "{text}"
+Tweet: "{tweet_text}"
 
-Return only valid JSON.
+Return ONLY valid JSON, with no explanation or extra text.
 """
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-        )
-        return json.loads(response.choices[0].message.content.strip())
-    except Exception as e:
-        return {"notes": f"OpenAI parsing error: {e}"}
+    response = client.responses.create(
+        model="gpt-4.1",  # or "gpt-4o" if supported for web search
+        tools=[{"type": "web_search_preview"}],
+        input=prompt,
+    )
+    # The model's output is in response.output_text
+    content = response.output_text.strip()
+    print("OpenAI raw response:", content)  # Debug print
 
-def resolve_company_website(company_name):
-    if not company_name:
-        return None
-    prompt = f"What is the official website URL of a company called '{company_name}'? Please return only domain when sure, example: 'example.com'. If not found or unsure, return nothing, like an empty string."
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Error resolving domain for {company_name}: {e}")
-        return None
+    # Remove code fences if present
+    import re
+    content = re.sub(r"^```(?:json)?\s*|```$", "", content.strip(), flags=re.MULTILINE).strip()
+
+    return json.loads(content)
 
 def process_tweets():
     conn = psycopg2.connect(**DB_PARAMS)
@@ -76,9 +68,6 @@ def process_tweets():
     for tweet_id, text, created_at in rows:
         enriched = extract_with_openai(text)
 
-        company_name = enriched.get("company_name")
-        company_url = resolve_company_website(company_name)
-
         final = {
             "tweet_id": tweet_id,
             "company_name": enriched.get("company_name"),
@@ -91,7 +80,7 @@ def process_tweets():
             "source_url": f"https://twitter.com/i/web/status/{tweet_id}",
             "confidence": enriched.get("confidence"),
             "notes": enriched.get("notes"),
-            "company_url": company_url
+            "company_url": enriched.get("company_url")
         }
 
         cur.execute("""
