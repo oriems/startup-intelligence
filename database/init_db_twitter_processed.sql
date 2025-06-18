@@ -28,5 +28,6 @@ CREATE TABLE IF NOT EXISTS twitter_processed (
     location TEXT,
     source_url TEXT,
     confidence TEXT,  -- If provided by OpenAI
-    notes TEXT  -- For logging or errors
+    notes TEXT,  -- For logging or errors
+    company_url TEXT -- Optional field for the company's website URL
 );
